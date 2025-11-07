@@ -1,8 +1,9 @@
+using System.Collections.Generic;
+using System.IO;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-using TMPro;
-using System.IO;
 
 public class GameManager : MonoBehaviour
 {
@@ -11,16 +12,16 @@ public class GameManager : MonoBehaviour
     private string savePath;
 
     [Header("UI Groups")]
-    [SerializeField] private GameObject startGroup;      // StartGroup
-    [SerializeField] private GameObject selectGroup;     // SelectGroup
+    [SerializeField] private GameObject startGroup;
+    [SerializeField] private GameObject selectGroup;
 
     [Header("Start Menu")]
-    [SerializeField] private TextMeshProUGUI startText;  // 시작
-    [SerializeField] private TextMeshProUGUI endText;    // 종료
+    [SerializeField] private TextMeshProUGUI startText;
+    [SerializeField] private TextMeshProUGUI endText;
 
     [Header("Select Menu")]
-    [SerializeField] private TextMeshProUGUI continueText;  // 이어하기
-    [SerializeField] private TextMeshProUGUI newGameText;   // 새로하기
+    [SerializeField] private TextMeshProUGUI continueText;
+    [SerializeField] private TextMeshProUGUI newGameText;
 
     void Awake()
     {
@@ -37,15 +38,94 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void SaveGame()
+    {
+        if (Inventory.Instance != null)
+        {
+            saveData.inventoryItems.Clear();
+
+            List<Item> items = Inventory.Instance.GetItems();
+            foreach (Item item in items)
+            {
+                saveData.inventoryItems.Add(new ItemData(item));
+            }
+        }
+
+        if (ExperienceSystem.Instance != null)
+        {
+            saveData.currentLevel = ExperienceSystem.Instance.currentLevel; // playerLevel -> currentLevel로 변경
+            saveData.currentExp = ExperienceSystem.Instance.currentExp;
+            saveData.expToNextLevel = ExperienceSystem.Instance.expToNextLevel;
+        }
+
+        string json = JsonUtility.ToJson(saveData, true);
+        System.IO.File.WriteAllText(savePath, json);
+    }
+
+    public void LoadExperience()
+    {
+        if (ExperienceSystem.Instance != null)
+        {
+            ExperienceSystem.Instance.LoadExp(
+                saveData.currentExp,
+                saveData.expToNextLevel
+            );
+            ExperienceSystem.Instance.currentLevel = saveData.currentLevel; // playerLevel -> currentLevel로 변경
+        }
+    }
+
+    public void LoadGame()
+    {
+        if (System.IO.File.Exists(savePath))
+        {
+            string json = System.IO.File.ReadAllText(savePath);
+            saveData = JsonUtility.FromJson<SaveData>(json);
+        }
+        else
+        {
+            saveData = new SaveData();
+        }
+    }
+
+    public void LoadInventory()
+    {
+        if (Inventory.Instance != null && saveData.inventoryItems != null)
+        {
+            Inventory.Instance.ClearItems();
+
+            foreach (ItemData itemData in saveData.inventoryItems)
+            {
+                Inventory.Instance.AddItem(itemData.ToItem());
+            }
+        }
+    }
+
+    // 던전 층수 증가
+    public void IncreaseDungeonFloor()
+    {
+        saveData.dungeonFloor++;
+        SaveGame();
+    }
+
+    // 던전 층수 리셋
+    public void ResetDungeonFloor()
+    {
+        saveData.dungeonFloor = 1;
+        SaveGame();
+    }
+
+    public int GetCurrentFloor()
+    {
+        return saveData.dungeonFloor;
+    }
+
     void Start()
     {
-        // 선택 화면 숨기기
         if (selectGroup != null)
         {
             selectGroup.SetActive(false);
         }
 
-        // 클릭 이벤트 추가
         AddClickEvent(startText, OnStartTextClicked);
         AddClickEvent(endText, OnEndTextClicked);
         AddClickEvent(continueText, OnContinueTextClicked);
@@ -68,86 +148,142 @@ public class GameManager : MonoBehaviour
         trigger.triggers.Add(entry);
     }
 
-    // 시작 클릭
     void OnStartTextClicked()
     {
-        Debug.Log("시작 클릭!");
         startGroup.SetActive(false);
         selectGroup.SetActive(true);
     }
 
-    // 이어하기 클릭
     void OnContinueTextClicked()
     {
-        Debug.Log("이어하기!");
-
         if (File.Exists(savePath))
         {
             LoadGame();
             selectGroup.SetActive(false);
-
-            // TownScene으로 이동
             SceneManager.LoadScene("TownScene");
         }
         else
         {
-            Debug.Log("저장 데이터 없음! 새 게임으로 시작합니다.");
             OnNewGameTextClicked();
         }
     }
 
-    // 새로하기 클릭
     void OnNewGameTextClicked()
     {
-        Debug.Log("새로하기!");
         saveData = new SaveData();
         selectGroup.SetActive(false);
-
-        // TownScene으로 이동
         SceneManager.LoadScene("TownScene");
     }
 
-    // 종료 클릭
     void OnEndTextClicked()
     {
-        Debug.Log("게임 종료!");
         SaveGame();
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-            Application.Quit();
+        Application.Quit();
 #endif
     }
-
-    public void SaveGame()
+    void OnEnable()
     {
-        string json = JsonUtility.ToJson(saveData, true);
-        File.WriteAllText(savePath, json);
-        Debug.Log("게임 저장됨!");
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    public void LoadGame()
+    void OnDisable()
     {
-        if (File.Exists(savePath))
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    // 씬으로 다시 돌아왔을떄 재연결
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+ 
+        if (scene.name == "StartScene")
         {
-            string json = File.ReadAllText(savePath);
-            saveData = JsonUtility.FromJson<SaveData>(json);
-            Debug.Log("게임 불러옴!");
-        }
-        else
-        {
-            saveData = new SaveData();
-            Debug.Log("새 게임 시작!");
+   
+            startGroup = GameObject.Find("StartGroup");
+            selectGroup = GameObject.Find("SelectGroup");
+
+     
+            GameObject startTextObj = GameObject.Find("StartText");
+            if (startTextObj != null)
+                startText = startTextObj.GetComponent<TextMeshProUGUI>();
+
+            GameObject endTextObj = GameObject.Find("EndText");
+            if (endTextObj != null)
+                endText = endTextObj.GetComponent<TextMeshProUGUI>();
+
+            GameObject continueTextObj = GameObject.Find("ContinueText");
+            if (continueTextObj != null)
+                continueText = continueTextObj.GetComponent<TextMeshProUGUI>();
+
+            GameObject newGameTextObj = GameObject.Find("NewGameText");
+            if (newGameTextObj != null)
+                newGameText = newGameTextObj.GetComponent<TextMeshProUGUI>();
+
+
+            if (startGroup != null)
+            {
+                startGroup.SetActive(true);
+            }
+
+            if (selectGroup != null)
+            {
+                selectGroup.SetActive(false);
+            }
+
+            AddClickEvent(startText, OnStartTextClicked);
+            AddClickEvent(endText, OnEndTextClicked);
+            AddClickEvent(continueText, OnContinueTextClicked);
+            AddClickEvent(newGameText, OnNewGameTextClicked);
         }
     }
+
 }
 
 [System.Serializable]
 public class SaveData
 {
     public int score;
-    public int level;
     public string playerName;
     public float playTime;
+
+    // 플레이어 레벨 (경험치 레벨)
+    public int currentLevel = 1; 
+    public int currentExp = 0;
+    public int expToNextLevel = 100;
+    public float expMultiplier = 1.5f;
+    public int baseAttack = 20;
+    public int baseHealth = 100;
+    public int baseDefense = 0;
+
+    // 던전 층수
+    public int dungeonFloor = 1;
+
+    public List<ItemData> inventoryItems = new List<ItemData>();
+}
+
+[System.Serializable]
+public class ItemData
+{
+    public string itemName;
+    public int itemType;
+    public int value;
+    public string description;
+
+    public ItemData(Item item)
+    {
+        itemName = item.itemName;
+        itemType = (int)item.type;
+        value = item.value;
+        description = item.description;
+    }
+
+    public Item ToItem()
+    {
+        return new Item(itemName, (Item.ItemType)itemType, value, description);
+    }
+
+
 }

@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
 
     [Header("Bounds")]
-    [SerializeField] private Tilemap groundTilemap; // TownGround 타일맵
+    [SerializeField] private Tilemap groundTilemap; 
 
     private Rigidbody2D rb;
     private Animator animator;
@@ -28,7 +28,7 @@ public class PlayerController : MonoBehaviour
 
         rb.gravityScale = 0;
 
-        // 타일맵 경계 계산
+        // 타일맵 경계 
         CalculateBounds();
     }
 
@@ -36,11 +36,10 @@ public class PlayerController : MonoBehaviour
     {
         if (groundTilemap != null)
         {
-            // 타일맵의 실제 범위 가져오기
+            // 타일맵의 실제 범위
             groundTilemap.CompressBounds();
             movementBounds = groundTilemap.localBounds;
 
-            Debug.Log($"Movement Bounds: {movementBounds}");
         }
     }
 
@@ -92,13 +91,4 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // 경계 시각화 (디버깅용)
-    void OnDrawGizmos()
-    {
-        if (groundTilemap != null)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(movementBounds.center, movementBounds.size);
-        }
-    }
 }
