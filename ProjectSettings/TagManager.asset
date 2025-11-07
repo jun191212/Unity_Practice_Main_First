@@ -3,7 +3,9 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Ground
+  - Room
   layers:
   - Default
   - TransparentFX
@@ -11,10 +13,10 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
+  - Ground
+  - Player
+  - Monster
+  - Minimap
   - 
   - 
   - 
@@ -40,4 +42,22 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Back
+    uniqueID: 2819524397
+    locked: 0
+  - name: Middle
+    uniqueID: 1946998839
+    locked: 0
+  - name: Front
+    uniqueID: 2694105151
+    locked: 0
+  - name: Main
+    uniqueID: 2475068959
+    locked: 0
+  - name: Top
+    uniqueID: 581595621
+    locked: 0
+  - name: Player
+    uniqueID: 3470780191
     locked: 0
